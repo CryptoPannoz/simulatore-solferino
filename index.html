@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Simulatore Affitto vs Vendita — Via Solferino 4, Novara</title>
+<style>
+  :root {
+    color-scheme: light;
+    --page:           #f9f9f7;
+    --surface:        #fcfcfb;
+    --text-primary:   #0b0b0b;
+    --text-secondary: #52514e;
+    --muted:          #898781;
+    --grid:           #e1e0d9;
+    --baseline:       #c3c2b7;
+    --border:         rgba(11,11,11,0.10);
+    --series-vendita: #2a78d6;
+    --series-affitto: #1baf7a;
+    --good:           #006300;
+    --accent-wash-v:  rgba(42,120,214,0.08);
+    --accent-wash-a:  rgba(27,175,122,0.08);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      color-scheme: dark;
+      --page:           #0d0d0d;
+      --surface:        #1a1a19;
+      --text-primary:   #ffffff;
+      --text-secondary: #c3c2b7;
+      --muted:          #898781;
+      --grid:           #2c2c2a;
+      --baseline:       #383835;
+      --border:         rgba(255,255,255,0.10);
+      --series-vendita: #3987e5;
+      --series-affitto: #199e70;
+      --good:           #0ca30c;
+      --accent-wash-v:  rgba(57,135,229,0.12);
+      --accent-wash-a:  rgba(25,158,112,0.12);
+    }
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    background: var(--page);
+    color: var(--text-primary);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    line-height: 1.45;
+    padding: 24px 16px 64px;
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; }
+  header h1 { font-size: 1.45rem; letter-spacing: -0.01em; }
+  header p  { color: var(--text-secondary); font-size: 0.92rem; margin-top: 4px; }
+
+  .layout { display: grid; grid-template-columns: 380px 1fr; gap: 20px; margin-top: 20px; }
+  @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px;
+  }
+  .card + .card { margin-top: 16px; }
+  .card h2 {
+    font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--muted); margin-bottom: 12px; font-weight: 600;
+  }
+  .card h2 .dot { display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:6px; vertical-align: baseline; }
+
+  .field { display: grid; grid-template-columns: 1fr 108px; gap: 8px; align-items: center; margin-bottom: 9px; }
+  .field label { font-size: 0.86rem; color: var(--text-secondary); }
+  .field input[type=number], .field select {
+    width: 100%;
+    padding: 6px 8px;
+    border: 1px solid var(--baseline);
+    border-radius: 8px;
+    background: var(--page);
+    color: var(--text-primary);
+    font: inherit; font-size: 0.9rem;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+  .field select { text-align: left; }
+  .field.wide { grid-template-columns: 1fr; }
+  .field.wide select { text-align: left; }
+  .hint { font-size: 0.76rem; color: var(--muted); margin: -4px 0 10px; }
+
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+  .kpi {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px;
+  }
+  .kpi .label { font-size: 0.78rem; color: var(--muted); }
+  .kpi .value { font-size: 1.5rem; font-weight: 650; letter-spacing: -0.01em; margin-top: 2px; }
+  .kpi .sub   { font-size: 0.78rem; color: var(--text-secondary); margin-top: 2px; }
+  .kpi.vendita { background: var(--accent-wash-v); }
+  .kpi.affitto { background: var(--accent-wash-a); }
+
+  .verdict {
+    margin-top: 16px; padding: 14px 16px; border-radius: 12px;
+    border: 1px solid var(--border); background: var(--surface);
+    font-size: 0.95rem;
+  }
+  .verdict strong { font-weight: 650; }
+
+  .chart-card { margin-top: 16px; }
+  .chart-head { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 8px; }
+  .chart-head h3 { font-size: 1rem; font-weight: 600; }
+  .legend { display: flex; gap: 16px; font-size: 0.82rem; color: var(--text-secondary); }
+  .legend .swatch { display: inline-block; width: 14px; height: 3px; border-radius: 2px; vertical-align: middle; margin-right: 5px; }
+  #chartWrap { position: relative; margin-top: 10px; }
+  canvas { width: 100%; height: 320px; display: block; }
+  #tooltip {
+    position: absolute; pointer-events: none; display: none;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+    padding: 8px 10px; font-size: 0.8rem; box-shadow: 0 4px 14px rgba(0,0,0,0.12);
+    white-space: nowrap; z-index: 5;
+  }
+  #tooltip .t-title { font-weight: 600; margin-bottom: 3px; }
+  #tooltip .row { display: flex; align-items: center; gap: 6px; font-variant-numeric: tabular-nums; }
+  #tooltip .sw { width: 8px; height: 8px; border-radius: 2px; display: inline-block; }
+
+  .table-toggle {
+    background: none; border: 1px solid var(--baseline); border-radius: 8px;
+    color: var(--text-secondary); font: inherit; font-size: 0.8rem;
+    padding: 4px 10px; cursor: pointer;
+  }
+  .table-toggle:hover { background: var(--page); }
+  #dataTable { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 0.84rem; display: none; }
+  #dataTable th, #dataTable td {
+    padding: 6px 8px; text-align: right; border-bottom: 1px solid var(--grid);
+    font-variant-numeric: tabular-nums;
+  }
+  #dataTable th { color: var(--muted); font-weight: 600; }
+  #dataTable th:first-child, #dataTable td:first-child { text-align: left; }
+
+  details.method { margin-top: 20px; color: var(--text-secondary); font-size: 0.85rem; }
+  details.method summary { cursor: pointer; color: var(--muted); font-size: 0.82rem; }
+  details.method ul { margin: 8px 0 0 18px; }
+  footer { margin-top: 28px; font-size: 0.78rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Simulatore Affitto vs Vendita</h1>
+    <p>Via Solferino 4, Novara — 2 unità ristrutturate (80 + 110 m²) + posto auto. Modifica i parametri: tutto si ricalcola in tempo reale.</p>
+  </header>
+
+  <div class="layout">
+    <!-- ============ PARAMETRI ============ -->
+    <div>
+      <div class="card">
+        <h2>Immobile</h2>
+        <div class="field"><label for="supA">Superficie unità A (m²)</label><input type="number" id="supA" value="110" min="10" step="1"></div>
+        <div class="field"><label for="supB">Superficie unità B (m²)</label><input type="number" id="supB" value="80" min="10" step="1"></div>
+        <div class="field"><label for="prezzoMq">Prezzo di vendita (€/m²)</label><input type="number" id="prezzoMq" value="2300" min="500" step="50"></div>
+        <div class="field"><label for="postoAuto">Valore posto auto (€)</label><input type="number" id="postoAuto" value="12000" min="0" step="500"></div>
+      </div>
+
+      <div class="card">
+        <h2><span class="dot" style="background:var(--series-vendita)"></span>Scenario vendita</h2>
+        <div class="field"><label for="provv">Provvigione agenzia (%)</label><input type="number" id="provv" value="3" min="0" max="10" step="0.5"></div>
+        <div class="field"><label for="ivaProvv">IVA su provvigione (%)</label><input type="number" id="ivaProvv" value="22" min="0" max="22" step="1"></div>
+        <div class="field"><label for="speseVendita">Spese fisse vendita (€)</label><input type="number" id="speseVendita" value="1000" min="0" step="100"></div>
+        <div class="field wide">
+          <label for="regimePlus">Plusvalenza</label>
+          <select id="regimePlus">
+            <option value="esente" selected>Esente (successione / posseduto &gt;5 anni)</option>
+            <option value="tassata">Tassata 26% (es. donazione + rivendita &lt;5 anni)</option>
+          </select>
+        </div>
+        <div id="plusFields" style="display:none">
+          <div class="field"><label for="valoreCarico">Valore di carico / acquisto (€)</label><input type="number" id="valoreCarico" value="100000" min="0" step="5000"></div>
+          <div class="field"><label for="costoRistr">Costi ristrutturazione deducibili (€)</label><input type="number" id="costoRistr" value="300000" min="0" step="5000"></div>
+        </div>
+        <div class="field"><label for="rendAlt">Rendimento netto reinvestimento (%/anno)</label><input type="number" id="rendAlt" value="2.9" min="0" max="15" step="0.1"></div>
+        <p class="hint">Es. BTP ~3,3% lordo ≈ 2,9% netto (imposta 12,5%).</p>
+      </div>
+
+      <div class="card">
+        <h2><span class="dot" style="background:var(--series-affitto)"></span>Scenario affitto</h2>
+        <div class="field"><label for="canA">Canone unità A (€/mese)</label><input type="number" id="canA" value="1050" min="0" step="25"></div>
+        <div class="field"><label for="canB">Canone unità B (€/mese)</label><input type="number" id="canB" value="800" min="0" step="25"></div>
+        <div class="field"><label for="canAuto">Canone posto auto (€/mese)</label><input type="number" id="canAuto" value="60" min="0" step="5"></div>
+        <div class="field wide">
+          <label for="regimeAffitto">Regime fiscale</label>
+          <select id="regimeAffitto">
+            <option value="cedolare21" selected>Cedolare secca 21% (4+4)</option>
+            <option value="concordato10">Concordato 3+2 — cedolare 10% + IMU −25%</option>
+            <option value="irpef">IRPEF ordinaria (sul 95% del canone)</option>
+          </select>
+        </div>
+        <div class="field" id="scontoConcRow" style="display:none"><label for="scontoConc">Sconto canone concordato (%)</label><input type="number" id="scontoConc" value="15" min="0" max="40" step="1"></div>
+        <div class="field" id="aliqIrpefRow" style="display:none"><label for="aliqIrpef">Aliquota marginale IRPEF (%)</label><input type="number" id="aliqIrpef" value="35" min="23" max="47" step="1"></div>
+        <div class="field"><label for="imu">IMU annua totale (€)</label><input type="number" id="imu" value="2500" min="0" step="100"></div>
+        <div class="field"><label for="manut">Manutenzione (% del canone)</label><input type="number" id="manut" value="5" min="0" max="30" step="0.5"></div>
+        <div class="field"><label for="assic">Assicurazione (€/anno)</label><input type="number" id="assic" value="400" min="0" step="50"></div>
+        <div class="field"><label for="sfitto">Sfitto / morosità (%)</label><input type="number" id="sfitto" value="4" min="0" max="30" step="0.5"></div>
+        <div class="field"><label for="agenziaLoc">Agenzia locazione (€/anno, ammort.)</label><input type="number" id="agenziaLoc" value="500" min="0" step="50"></div>
+        <div class="field"><label for="rivalCanone">Rivalutazione canone (%/anno)</label><input type="number" id="rivalCanone" value="1.5" min="0" max="8" step="0.1"></div>
+      </div>
+
+      <div class="card">
+        <h2>Confronto pluriennale</h2>
+        <div class="field"><label for="anni">Orizzonte (anni)</label><input type="number" id="anni" value="10" min="1" max="30" step="1"></div>
+        <div class="field"><label for="apprezz">Apprezzamento immobile (%/anno)</label><input type="number" id="apprezz" value="1" min="-5" max="8" step="0.1"></div>
+        <div class="field wide">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+            <input type="checkbox" id="vendiFine" checked>
+            Nello scenario affitto, vendi a fine periodo (applica costi di vendita)
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ RISULTATI ============ -->
+    <div>
+      <div class="kpis">
+        <div class="kpi vendita">
+          <div class="label">Valore immobile oggi</div>
+          <div class="value" id="kValore">—</div>
+          <div class="sub" id="kValoreSub">—</div>
+        </div>
+        <div class="kpi vendita">
+          <div class="label">Netto vendita oggi</div>
+          <div class="value" id="kNettoVendita">—</div>
+          <div class="sub" id="kNettoVenditaSub">—</div>
+        </div>
+        <div class="kpi affitto">
+          <div class="label">Affitto netto (anno 1)</div>
+          <div class="value" id="kAffittoNetto">—</div>
+          <div class="sub" id="kAffittoSub">—</div>
+        </div>
+        <div class="kpi affitto">
+          <div class="label">Rendimento netto affitto</div>
+          <div class="value" id="kYield">—</div>
+          <div class="sub">sul netto realizzabile in vendita</div>
+        </div>
+      </div>
+
+      <div class="verdict" id="verdict">—</div>
+
+      <div class="card chart-card">
+        <div class="chart-head">
+          <h3>Patrimonio nel tempo</h3>
+          <div style="display:flex;align-items:center;gap:14px">
+            <div class="legend">
+              <span><span class="swatch" style="background:var(--series-vendita)"></span>Vendita + reinvestimento</span>
+              <span><span class="swatch" style="background:var(--series-affitto)"></span>Affitto (immobile + canoni)</span>
+            </div>
+            <button class="table-toggle" id="tblBtn" aria-expanded="false">Tabella</button>
+          </div>
+        </div>
+        <div id="chartWrap">
+          <canvas id="chart" height="320" role="img" aria-label="Grafico a linee: patrimonio per anno nei due scenari, vendita e affitto"></canvas>
+          <div id="tooltip"></div>
+        </div>
+        <table id="dataTable" aria-label="Dati del grafico anno per anno">
+          <thead><tr><th>Anno</th><th>Vendita + reinvestimento</th><th>Affitto (immobile + canoni)</th><th>Differenza</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <details class="method">
+        <summary>Come calcola (metodologia e semplificazioni)</summary>
+        <ul>
+          <li><strong>Netto vendita</strong> = valore − provvigione (+IVA) − spese fisse − eventuale imposta 26% sulla plusvalenza (valore − carico − ristrutturazione).</li>
+          <li><strong>Scenario vendita</strong>: il netto viene reinvestito e capitalizza al rendimento netto indicato.</li>
+          <li><strong>Affitto netto annuo</strong> = canoni × (1 − sfitto) − imposta (cedolare sul canone effettivo, o IRPEF sul 95%) − IMU (−25% se concordato) − manutenzione − assicurazione − agenzia. Canoni rivalutati ogni anno; nel concordato il canone parte scontato della % indicata.</li>
+          <li><strong>Scenario affitto</strong>: valore immobile che si apprezza + canoni netti accumulati e reinvestiti allo stesso rendimento; a fine periodo, se selezionato, si sottraggono i costi di vendita (stessa % di provvigione; plusvalenza non ricalcolata).</li>
+          <li>Valori nominali, non attualizzati per l'inflazione. IMU e costi fissi costanti nel tempo.</li>
+        </ul>
+      </details>
+
+      <footer>Simulazione indicativa a scopo di confronto — non è consulenza finanziaria o fiscale. Verifica plusvalenza, rendite catastali e aliquote IMU con il commercialista. Dati mercato: Novara centro storico ~€2.100–2.380/m², affitti ~€10,5/m²/mese (metà 2026).</footer>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  const $ = id => document.getElementById(id);
+  const fmtEUR = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
+  const fmtPct = v => v.toLocaleString('it-IT', { maximumFractionDigits: 1 }) + '%';
+
+  const inputIds = ['supA','supB','prezzoMq','postoAuto','provv','ivaProvv','speseVendita','regimePlus',
+    'valoreCarico','costoRistr','rendAlt','canA','canB','canAuto','regimeAffitto','scontoConc','aliqIrpef',
+    'imu','manut','assic','sfitto','agenziaLoc','rivalCanone','anni','apprezz','vendiFine'];
+
+  function readParams() {
+    const n = id => parseFloat($(id).value) || 0;
+    return {
+      supA: n('supA'), supB: n('supB'), prezzoMq: n('prezzoMq'), postoAuto: n('postoAuto'),
+      provv: n('provv') / 100, ivaProvv: n('ivaProvv') / 100, speseVendita: n('speseVendita'),
+      regimePlus: $('regimePlus').value, valoreCarico: n('valoreCarico'), costoRistr: n('costoRistr'),
+      rendAlt: n('rendAlt') / 100,
+      canA: n('canA'), canB: n('canB'), canAuto: n('canAuto'),
+      regimeAffitto: $('regimeAffitto').value, scontoConc: n('scontoConc') / 100, aliqIrpef: n('aliqIrpef') / 100,
+      imu: n('imu'), manut: n('manut') / 100, assic: n('assic'), sfitto: n('sfitto') / 100,
+      agenziaLoc: n('agenziaLoc'), rivalCanone: n('rivalCanone') / 100,
+      anni: Math.max(1, Math.round(n('anni'))), apprezz: n('apprezz') / 100,
+      vendiFine: $('vendiFine').checked,
+    };
+  }
+
+  function costiVendita(valore, p) {
+    return valore * p.provv * (1 + p.ivaProvv) + p.speseVendita;
+  }
+
+  function compute(p) {
+    const valore = (p.supA + p.supB) * p.prezzoMq + p.postoAuto;
+
+    // --- Vendita oggi ---
+    let plusTax = 0;
+    if (p.regimePlus === 'tassata') {
+      const plusvalenza = Math.max(0, valore - p.valoreCarico - p.costoRistr);
+      plusTax = plusvalenza * 0.26;
+    }
+    const nettoVendita = valore - costiVendita(valore, p) - plusTax;
+
+    // --- Affitto: canone anno 1 ---
+    const scontoConc = p.regimeAffitto === 'concordato10' ? (1 - p.scontoConc) : 1;
+    const canoneMensile = (p.canA + p.canB + p.canAuto) * scontoConc;
+    const imuEff = p.regimeAffitto === 'concordato10' ? p.imu * 0.75 : p.imu;
+
+    function nettoAffittoAnno(t) { // t = 1..anni
+      const lordo = canoneMensile * 12 * Math.pow(1 + p.rivalCanone, t - 1);
+      const effettivo = lordo * (1 - p.sfitto);
+      let imposta;
+      if (p.regimeAffitto === 'cedolare21') imposta = effettivo * 0.21;
+      else if (p.regimeAffitto === 'concordato10') imposta = effettivo * 0.10;
+      else imposta = effettivo * 0.95 * p.aliqIrpef;
+      return effettivo - imposta - imuEff - lordo * p.manut - p.assic - p.agenziaLoc;
+    }
+
+    // --- Serie pluriennali ---
+    const serieVendita = [nettoVendita];
+    const serieAffitto = [valore - (p.vendiFine ? costiVendita(valore, p) : 0)];
+    let cumCanoni = 0;
+    for (let t = 1; t <= p.anni; t++) {
+      serieVendita.push(serieVendita[t - 1] * (1 + p.rendAlt));
+      cumCanoni = cumCanoni * (1 + p.rendAlt) + nettoAffittoAnno(t);
+      const valImm = valore * Math.pow(1 + p.apprezz, t);
+      serieAffitto.push(valImm - (p.vendiFine ? costiVendita(valImm, p) : 0) + cumCanoni);
+    }
+
+    return { valore, plusTax, nettoVendita, netto1: nettoAffittoAnno(1),
+             lordo1: canoneMensile * 12, serieVendita, serieAffitto };
+  }
+
+  // ---------- Chart ----------
+  const canvas = $('chart'), tooltip = $('tooltip');
+  let chartState = null;
+
+  function drawChart(r, p) {
+    const dpr = window.devicePixelRatio || 1;
+    const cssW = canvas.clientWidth, cssH = 320;
+    canvas.width = cssW * dpr; canvas.height = cssH * dpr;
+    const ctx = canvas.getContext('2d');
+    ctx.scale(dpr, dpr);
+
+    const css = getComputedStyle(document.documentElement);
+    const col = v => css.getPropertyValue(v).trim();
+    const cV = col('--series-vendita'), cA = col('--series-affitto');
+
+    const padL = 68, padR = 118, padT = 16, padB = 30;
+    const w = cssW - padL - padR, h = cssH - padT - padB;
+    const all = r.serieVendita.concat(r.serieAffitto);
+    const maxV = Math.max(...all) * 1.05, minV = Math.min(0, ...all);
+    const x = t => padL + (t / p.anni) * w;
+    const y = v => padT + h - ((v - minV) / (maxV - minV)) * h;
+
+    ctx.clearRect(0, 0, cssW, cssH);
+    ctx.font = '11px system-ui, sans-serif';
+
+    // gridlines + y labels
+    const steps = 4;
+    ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+    for (let i = 0; i <= steps; i++) {
+      const v = minV + (maxV - minV) * (i / steps);
+      ctx.strokeStyle = col('--grid'); ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(padL, y(v)); ctx.lineTo(padL + w, y(v)); ctx.stroke();
+      ctx.fillStyle = col('--muted');
+      ctx.fillText((v / 1000).toLocaleString('it-IT', { maximumFractionDigits: 0 }) + ' k€', padL - 8, y(v));
+    }
+    // x labels
+    ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+    const xStep = p.anni <= 12 ? 1 : Math.ceil(p.anni / 10);
+    for (let t = 0; t <= p.anni; t += xStep) {
+      ctx.fillStyle = col('--muted');
+      ctx.fillText(t === 0 ? 'oggi' : 'anno ' + t, x(t), padT + h + 8);
+    }
+    // baseline
+    ctx.strokeStyle = col('--baseline');
+    ctx.beginPath(); ctx.moveTo(padL, padT + h); ctx.lineTo(padL + w, padT + h); ctx.stroke();
+
+    // series
+    function line(serie, color) {
+      ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.lineJoin = 'round';
+      ctx.beginPath();
+      serie.forEach((v, t) => t === 0 ? ctx.moveTo(x(t), y(v)) : ctx.lineTo(x(t), y(v)));
+      ctx.stroke();
+    }
+    line(r.serieVendita, cV);
+    line(r.serieAffitto, cA);
+
+    // direct labels at line ends (relief for sub-3:1 series color: text in ink, mark in color)
+    ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.font = '600 11px system-ui, sans-serif';
+    const endV = r.serieVendita[p.anni], endA = r.serieAffitto[p.anni];
+    let yV = y(endV), yA = y(endA);
+    if (Math.abs(yV - yA) < 14) { const mid = (yV + yA) / 2; yV = mid + (yV <= yA ? -7 : 7); yA = mid + (yV <= yA ? 7 : -7); }
+    [[endV, yV, cV, 'Vendita'], [endA, yA, cA, 'Affitto']].forEach(([v, yy, c, name]) => {
+      ctx.fillStyle = c; ctx.beginPath(); ctx.arc(x(p.anni), y(v), 3.5, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = col('--text-primary');
+      ctx.fillText(name + ' ' + (v / 1000).toLocaleString('it-IT', { maximumFractionDigits: 0 }) + ' k€', x(p.anni) + 8, yy);
+    });
+
+    chartState = { x, y, padL, padT, w, h, r, p, cV, cA };
+  }
+
+  // hover crosshair + tooltip
+  canvas.addEventListener('mousemove', e => {
+    if (!chartState) return;
+    const s = chartState;
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const t = Math.round(((mx - s.padL) / s.w) * s.p.anni);
+    if (t < 0 || t > s.p.anni) { tooltip.style.display = 'none'; drawChart(s.r, s.p); return; }
+    drawChart(s.r, s.p);
+    const ctx = canvas.getContext('2d');
+    ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--baseline').trim();
+    ctx.setLineDash([3, 3]);
+    ctx.beginPath(); ctx.moveTo(s.x(t), s.padT); ctx.lineTo(s.x(t), s.padT + s.h); ctx.stroke();
+    ctx.setLineDash([]);
+    [[s.r.serieVendita[t], s.cV], [s.r.serieAffitto[t], s.cA]].forEach(([v, c]) => {
+      ctx.fillStyle = c; ctx.beginPath(); ctx.arc(s.x(t), s.y(v), 4, 0, Math.PI * 2); ctx.fill();
+    });
+    const diff = s.r.serieAffitto[t] - s.r.serieVendita[t];
+    tooltip.innerHTML =
+      '<div class="t-title">' + (t === 0 ? 'Oggi' : 'Anno ' + t) + '</div>' +
+      '<div class="row"><span class="sw" style="background:' + s.cV + '"></span>Vendita: <strong>' + fmtEUR.format(s.r.serieVendita[t]) + '</strong></div>' +
+      '<div class="row"><span class="sw" style="background:' + s.cA + '"></span>Affitto: <strong>' + fmtEUR.format(s.r.serieAffitto[t]) + '</strong></div>' +
+      '<div class="row" style="color:var(--muted)">Differenza: ' + (diff >= 0 ? '+' : '') + fmtEUR.format(diff) + '</div>';
+    tooltip.style.display = 'block';
+    const tw = tooltip.offsetWidth;
+    tooltip.style.left = Math.min(Math.max(s.x(t) - tw / 2, 0), canvas.clientWidth - tw) + 'px';
+    tooltip.style.top = '8px';
+  });
+  canvas.addEventListener('mouseleave', () => {
+    tooltip.style.display = 'none';
+    if (chartState) drawChart(chartState.r, chartState.p);
+  });
+
+  // ---------- UI update ----------
+  function update() {
+    const p = readParams();
+    $('plusFields').style.display = p.regimePlus === 'tassata' ? '' : 'none';
+    $('scontoConcRow').style.display = p.regimeAffitto === 'concordato10' ? '' : 'none';
+    $('aliqIrpefRow').style.display = p.regimeAffitto === 'irpef' ? '' : 'none';
+
+    const r = compute(p);
+
+    $('kValore').textContent = fmtEUR.format(r.valore);
+    $('kValoreSub').textContent = (p.supA + p.supB) + ' m² × ' + fmtEUR.format(p.prezzoMq) + '/m² + posto auto';
+    $('kNettoVendita').textContent = fmtEUR.format(r.nettoVendita);
+    $('kNettoVenditaSub').textContent = r.plusTax > 0
+      ? 'di cui imposta plusvalenza ' + fmtEUR.format(r.plusTax)
+      : 'plusvalenza esente';
+    $('kAffittoNetto').textContent = fmtEUR.format(r.netto1);
+    $('kAffittoSub').textContent = 'lordo ' + fmtEUR.format(r.lordo1) + '/anno';
+    const yieldNet = r.nettoVendita > 0 ? (r.netto1 / r.nettoVendita) * 100 : 0;
+    $('kYield').textContent = fmtPct(yieldNet);
+
+    const endV = r.serieVendita[p.anni], endA = r.serieAffitto[p.anni];
+    const diff = endA - endV;
+    let breakEven = null;
+    for (let t = 1; t <= p.anni; t++) {
+      const prev = r.serieAffitto[t - 1] - r.serieVendita[t - 1];
+      const cur = r.serieAffitto[t] - r.serieVendita[t];
+      if (prev < 0 && cur >= 0) { breakEven = t; break; }
+    }
+    let msg;
+    if (diff >= 0) {
+      msg = 'A <strong>' + p.anni + ' anni</strong> lo scenario <strong>affitto</strong> è avanti di <strong>' + fmtEUR.format(diff) + '</strong>' +
+            (breakEven ? ' (supera la vendita dall’anno ' + breakEven + ')' : '') + '.';
+    } else {
+      msg = 'A <strong>' + p.anni + ' anni</strong> lo scenario <strong>vendita + reinvestimento</strong> è avanti di <strong>' + fmtEUR.format(-diff) + '</strong>.';
+    }
+    msg += ' Affitto netto ' + fmtPct(yieldNet) + ' vs reinvestimento al ' + fmtPct(p.rendAlt * 100) + '.';
+    $('verdict').innerHTML = msg;
+
+    // table view
+    const tbody = document.querySelector('#dataTable tbody');
+    tbody.innerHTML = '';
+    for (let t = 0; t <= p.anni; t++) {
+      const d = r.serieAffitto[t] - r.serieVendita[t];
+      const tr = document.createElement('tr');
+      tr.innerHTML = '<td>' + (t === 0 ? 'Oggi' : 'Anno ' + t) + '</td><td>' + fmtEUR.format(r.serieVendita[t]) +
+        '</td><td>' + fmtEUR.format(r.serieAffitto[t]) + '</td><td>' + (d >= 0 ? '+' : '') + fmtEUR.format(d) + '</td>';
+      tbody.appendChild(tr);
+    }
+
+    drawChart(r, p);
+  }
+
+  $('tblBtn').addEventListener('click', () => {
+    const tbl = $('dataTable');
+    const open = tbl.style.display === 'table';
+    tbl.style.display = open ? 'none' : 'table';
+    $('tblBtn').setAttribute('aria-expanded', String(!open));
+    $('tblBtn').textContent = open ? 'Tabella' : 'Nascondi tabella';
+  });
+
+  inputIds.forEach(id => $(id).addEventListener('input', update));
+  window.addEventListener('resize', () => { if (chartState) drawChart(chartState.r, chartState.p); });
+  if (window.matchMedia) window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', update);
+  update();
+})();
+</script>
+</body>
+</html>
