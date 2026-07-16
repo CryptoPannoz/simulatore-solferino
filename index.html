@@ -65,7 +65,7 @@
     font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.06em;
     color: var(--muted); margin-bottom: 12px; font-weight: 600;
   }
-  .card h2 .dot { display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:6px; vertical-align: baseline; }
+  .dot { display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:6px; vertical-align: baseline; }
 
   .field { display: grid; grid-template-columns: 1fr 108px; gap: 8px; align-items: center; margin-bottom: 9px; }
   .field label { font-size: 0.86rem; color: var(--text-secondary); }
@@ -101,6 +101,18 @@
     font-size: 0.95rem;
   }
   .verdict strong { font-weight: 650; }
+
+  .pb-row { margin-top: 16px; }
+  .pb-row:first-of-type { margin-top: 4px; }
+  .pb-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-size: 0.86rem; margin-bottom: 6px; flex-wrap: wrap; }
+  .pb-head .pb-name { font-weight: 600; }
+  .pb-head .pb-amount { color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+  .pb-bar { position: relative; display: flex; height: 22px; border-radius: 6px; background: var(--page); border: 1px solid var(--border); overflow: hidden; }
+  .pb-seg { height: 100%; min-width: 0; }
+  .pb-seg + .pb-seg { margin-left: 2px; }
+  .pb-marker { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--text-primary); opacity: 0.55; }
+  .pb-note { font-size: 0.82rem; color: var(--text-secondary); margin-top: 6px; }
+  .pb-note strong { color: var(--text-primary); font-weight: 650; }
 
   .chart-card { margin-top: 16px; }
   .chart-head { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 8px; }
@@ -254,6 +266,12 @@
 
       <div class="verdict" id="verdict">—</div>
 
+      <div class="card chart-card" id="paybackCard">
+        <h2 id="pbTitle">Rientro dell'investimento di ristrutturazione</h2>
+        <div id="pbVendita" class="pb-row"></div>
+        <div id="pbAffitto" class="pb-row"></div>
+      </div>
+
       <div class="card chart-card">
         <div class="chart-head">
           <h3 id="chartTitle">Patrimonio nel tempo</h3>
@@ -367,16 +385,19 @@
     }
 
     // --- Rientro dell'investimento di ristrutturazione (canoni netti cumulati, anche oltre l'orizzonte) ---
-    let payback = null;
+    let paybackNom = null, paybackReale = null;
     if (p.costoRistr > 0) {
-      let cum = 0;
+      let cumN = 0, cumR = 0;
       for (let t = 1; t <= 100; t++) {
         const n = nettoAffittoAnno(t);
-        cum += p.valoriReali ? n / defl(t) : n;
-        if (cum >= p.costoRistr) { payback = t; break; }
         if (n <= 0 && t > 1) break; // canoni netti non positivi: non rientra mai
+        cumN += n; cumR += n / defl(t);
+        if (paybackNom === null && cumN >= p.costoRistr) paybackNom = t;
+        if (paybackReale === null && cumR >= p.costoRistr) paybackReale = t;
+        if (paybackNom !== null && paybackReale !== null) break;
       }
-    } else payback = 0;
+    } else { paybackNom = 0; paybackReale = 0; }
+    const payback = p.valoriReali ? paybackReale : paybackNom;
 
     // --- Serie da mostrare (deflazionate se richiesto) ---
     const dispVendita = serieVendita.map((v, t) => p.valoriReali ? v / defl(t) : v);
@@ -384,7 +405,7 @@
 
     return { valore, plusTax, nettoVendita, netto1: nettoAffittoAnno(1),
              lordo1: canoneMensile * 12, serieVendita: dispVendita, serieAffitto: dispAffitto,
-             cumCanoniSimple, payback };
+             cumCanoniSimple, payback, paybackNom, paybackReale };
   }
 
   // ---------- Chart ----------
@@ -424,7 +445,7 @@
     }
     // x labels
     ctx.textAlign = 'center'; ctx.textBaseline = 'top';
-    const xStep = p.anni <= 12 ? 1 : Math.ceil(p.anni / 10);
+    const xStep = Math.max(1, Math.ceil(p.anni / Math.max(2, Math.floor(w / 58))));
     for (let t = 0; t <= p.anni; t += xStep) {
       ctx.fillStyle = col('--muted');
       ctx.fillText(t === 0 ? 'oggi' : 'anno ' + t, x(t), padT + h + 8);
@@ -525,6 +546,53 @@
       $('kPaybackSub').textContent = r.nettoVendita >= p.costoRistr
         ? 'vendendo: coperto subito, +' + fmtEUR.format(r.nettoVendita - p.costoRistr) + ' oltre l’investimento'
         : 'vendendo: recuperi ' + fmtEUR.format(r.nettoVendita) + ' su ' + fmtEUR.format(p.costoRistr);
+    }
+
+    // Sezione dinamica: rientro dell'investimento
+    const card = $('paybackCard');
+    if (p.costoRistr <= 0) {
+      card.style.display = 'none';
+    } else {
+      card.style.display = '';
+      const css = getComputedStyle(document.documentElement);
+      const cV = css.getPropertyValue('--series-vendita').trim();
+      const cA = css.getPropertyValue('--series-affitto').trim();
+      $('pbTitle').textContent = 'Rientro dell’investimento di ristrutturazione — ' + fmtEUR.format(p.costoRistr) + realeTag;
+
+      // Vendita: investimento coperto + surplus (o ammanco)
+      const inv = p.costoRistr, netto = r.nettoVendita;
+      const surplus = netto - inv;
+      const roi = (surplus / inv) * 100;
+      const totV = Math.max(netto, inv);
+      const wCoperto = (Math.min(netto, inv) / totV) * 100;
+      const wSurplus = (Math.max(0, surplus) / totV) * 100;
+      let vBar = '<div class="pb-seg" style="width:' + wCoperto + '%;background:' + cV + '"></div>';
+      if (surplus > 0) vBar += '<div class="pb-seg" style="width:' + wSurplus + '%;background:' + cV + ';opacity:0.4"></div>';
+      const vMarker = surplus > 0 ? '<div class="pb-marker" style="left:' + wCoperto + '%"></div>' : '';
+      const vNote = surplus >= 0
+        ? 'Il netto di vendita copre <strong>subito</strong> l’investimento e lascia <strong>+' + fmtEUR.format(surplus) +
+          '</strong> oltre i ' + fmtEUR.format(inv) + ' spesi (<strong>' + (roi >= 0 ? '+' : '') + fmtPct(roi) + '</strong> sull’investimento).'
+        : 'Il netto di vendita copre solo ' + fmtEUR.format(netto) + ' dei ' + fmtEUR.format(inv) +
+          ' spesi: mancano <strong>' + fmtEUR.format(-surplus) + '</strong> (' + fmtPct(roi) + ').';
+      $('pbVendita').innerHTML =
+        '<div class="pb-head"><span class="pb-name"><span class="dot" style="background:' + cV + '"></span>Vendendo oggi</span><span class="pb-amount">netto ' + fmtEUR.format(netto) + '</span></div>' +
+        '<div class="pb-bar">' + vBar + vMarker + '</div>' +
+        '<div class="pb-note">' + vNote + '</div>';
+
+      // Affitto: avanzamento canoni netti cumulati all'orizzonte
+      const cumH = r.cumCanoniSimple[p.anni];
+      const pctH = (cumH / inv) * 100;
+      const aBar = '<div class="pb-seg" style="width:' + Math.min(pctH, 100) + '%;background:' + cA + '"></div>';
+      const yrs = v => v === null ? 'oltre 100 anni' : '≈ ' + v + ' anni';
+      const aNote = 'A <strong>' + p.anni + ' anni</strong> i canoni netti cumulati coprono il <strong>' +
+        pctH.toLocaleString('it-IT', { maximumFractionDigits: 0 }) + '%</strong> dell’investimento. Rientro completo: <strong>' +
+        yrs(r.paybackNom) + '</strong> in valori nominali, <strong>' + yrs(r.paybackReale) +
+        '</strong> in valori reali (inflazione ' + fmtPct(p.inflazione * 100) + '/anno).';
+      $('pbAffitto').innerHTML =
+        '<div class="pb-head"><span class="pb-name"><span class="dot" style="background:' + cA + '"></span>Affittando (canoni netti cumulati)</span><span class="pb-amount">a ' +
+        p.anni + ' anni: ' + fmtEUR.format(cumH) + '</span></div>' +
+        '<div class="pb-bar">' + aBar + '</div>' +
+        '<div class="pb-note">' + aNote + '</div>';
     }
 
     const endV = r.serieVendita[p.anni], endA = r.serieAffitto[p.anni];
