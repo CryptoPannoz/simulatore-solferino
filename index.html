@@ -95,9 +95,21 @@
   .kpi.vendita { background: var(--accent-wash-v); }
   .kpi.affitto { background: var(--accent-wash-a); }
 
+  .rc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  @media (max-width: 700px) { .rc-grid { grid-template-columns: 1fr; } }
+  .rc-title { font-size: 0.88rem; font-weight: 600; margin-bottom: 8px; }
+  .rc-item {
+    display: flex; justify-content: space-between; gap: 10px;
+    font-size: 0.86rem; padding: 4px 0; border-bottom: 1px dashed var(--grid);
+    color: var(--text-secondary);
+  }
+  .rc-item span:last-child { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .rc-item.total {
+    color: var(--text-primary); font-weight: 650;
+    border-bottom: none; border-top: 1.5px solid var(--baseline); margin-top: 2px; padding-top: 7px;
+  }
   .verdict {
-    margin-top: 16px; padding: 14px 16px; border-radius: 12px;
-    border: 1px solid var(--border); background: var(--surface);
+    margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--grid);
     font-size: 0.95rem;
   }
   .verdict strong { font-weight: 650; }
@@ -192,9 +204,10 @@
 
       <div class="card">
         <h2><span class="dot" style="background:var(--series-affitto)"></span>Scenario affitto</h2>
-        <div class="field"><label for="canA">Canone unità A (€/mese)</label><input type="number" id="canA" value="1050" min="0" step="25"></div>
-        <div class="field"><label for="canB">Canone unità B (€/mese)</label><input type="number" id="canB" value="800" min="0" step="25"></div>
-        <div class="field"><label for="canAuto">Canone posto auto (€/mese)</label><input type="number" id="canAuto" value="60" min="0" step="5"></div>
+        <div class="field"><label for="canA">Canone LORDO unità A (€/mese)</label><input type="number" id="canA" value="1050" min="0" step="25"></div>
+        <div class="field"><label for="canB">Canone LORDO unità B (€/mese)</label><input type="number" id="canB" value="800" min="0" step="25"></div>
+        <div class="field"><label for="canAuto">Canone LORDO posto auto (€/mese)</label><input type="number" id="canAuto" value="60" min="0" step="5"></div>
+        <p class="hint">Inserisci i canoni lordi di mercato (quelli dell'annuncio): tasse, sfitto e costi li sottrae il simulatore — il netto è nel resoconto.</p>
         <div class="field wide">
           <label for="regimeAffitto">Regime fiscale</label>
           <select id="regimeAffitto">
@@ -264,7 +277,20 @@
         </div>
       </div>
 
-      <div class="verdict" id="verdict">—</div>
+      <div class="card chart-card" id="resocontoCard">
+        <h2>Resoconto — dal lordo al netto</h2>
+        <div class="rc-grid">
+          <div>
+            <div class="rc-title"><span class="dot" style="background:var(--series-vendita)"></span>Vendita (una tantum)</div>
+            <div id="rcVendita"></div>
+          </div>
+          <div>
+            <div class="rc-title"><span class="dot" style="background:var(--series-affitto)"></span>Affitto (anno 1)</div>
+            <div id="rcAffitto"></div>
+          </div>
+        </div>
+        <div class="verdict" id="verdict">—</div>
+      </div>
 
       <div class="card chart-card" id="paybackCard">
         <h2 id="pbTitle">Rientro dell'investimento di ristrutturazione</h2>
@@ -403,9 +429,21 @@
     const dispVendita = serieVendita.map((v, t) => p.valoriReali ? v / defl(t) : v);
     const dispAffitto = serieAffitto.map((v, t) => p.valoriReali ? v / defl(t) : v);
 
+    // --- Breakdown anno 1 / vendita per il resoconto ---
+    const lordo1 = canoneMensile * 12;
+    const sfittoLoss1 = lordo1 * p.sfitto;
+    const eff1 = lordo1 - sfittoLoss1;
+    let imposta1, impostaLabel;
+    if (p.regimeAffitto === 'cedolare21') { imposta1 = eff1 * 0.21; impostaLabel = 'Cedolare secca 21%'; }
+    else if (p.regimeAffitto === 'concordato10') { imposta1 = eff1 * 0.10; impostaLabel = 'Cedolare secca 10% (concordato)'; }
+    else { imposta1 = eff1 * 0.95 * p.aliqIrpef; impostaLabel = 'IRPEF ' + (p.aliqIrpef * 100).toLocaleString('it-IT') + '% (sul 95%)'; }
+    const gest1 = lordo1 * p.manut + p.assic + p.agenziaLoc;
+    const provvTot = valore * p.provv * (1 + p.ivaProvv);
+
     return { valore, plusTax, nettoVendita, netto1: nettoAffittoAnno(1),
-             lordo1: canoneMensile * 12, serieVendita: dispVendita, serieAffitto: dispAffitto,
-             cumCanoniSimple, payback, paybackNom, paybackReale };
+             lordo1, serieVendita: dispVendita, serieAffitto: dispAffitto,
+             cumCanoniSimple, payback, paybackNom, paybackReale,
+             breakdown: { sfittoLoss1, imposta1, impostaLabel, imu1: imuEff, gest1, provvTot } };
   }
 
   // ---------- Chart ----------
@@ -594,6 +632,30 @@
         '<div class="pb-bar">' + aBar + '</div>' +
         '<div class="pb-note">' + aNote + '</div>';
     }
+
+    // Resoconto: breakdown vendita e affitto
+    const b = r.breakdown;
+    const rcRows = rows => rows.map(([l, v, cls]) =>
+      '<div class="rc-item' + (cls ? ' ' + cls : '') + '"><span>' + l + '</span><span>' + v + '</span></div>').join('');
+    const venditaRows = [
+      ['Valore di mercato', fmtEUR.format(r.valore)],
+      ['− Provvigione agenzia (' + fmtPct(p.provv * 100) + ' + IVA)', '−' + fmtEUR.format(b.provvTot)],
+      ['− Spese fisse (APE, tecnici)', '−' + fmtEUR.format(p.speseVendita)],
+      p.regimePlus === 'tassata'
+        ? ['− Imposta plusvalenza 26%', '−' + fmtEUR.format(r.plusTax)]
+        : ['Plusvalenza', 'esente'],
+      ['= Netto in tasca, subito', fmtEUR.format(r.nettoVendita), 'total'],
+    ];
+    const affittoRows = [
+      ['Canoni LORDI (12 mesi)', fmtEUR.format(r.lordo1)],
+      ['− Sfitto / morosità (' + fmtPct(p.sfitto * 100) + ')', '−' + fmtEUR.format(b.sfittoLoss1)],
+      ['− ' + b.impostaLabel, '−' + fmtEUR.format(b.imposta1)],
+      ['− IMU' + (p.regimeAffitto === 'concordato10' ? ' (ridotta 25%)' : ''), '−' + fmtEUR.format(b.imu1)],
+      ['− Manutenzione, assicurazione, agenzia', '−' + fmtEUR.format(b.gest1)],
+      ['= Canoni NETTI anno 1 (' + fmtPct(yieldNet) + ' sul netto vendita)', fmtEUR.format(r.netto1), 'total'],
+    ];
+    $('rcVendita').innerHTML = rcRows(venditaRows);
+    $('rcAffitto').innerHTML = rcRows(affittoRows);
 
     const endV = r.serieVendita[p.anni], endA = r.serieAffitto[p.anni];
     const diff = endA - endV;
