@@ -1,6 +1,8 @@
 # simulatore-solferino — istruzioni per Claude
 
-**Scopo**: simulatore HTML statico affitto-vs-vendita per l'immobile di via Solferino 4, Novara (2 unità ristrutturate 80+110 m² + posto auto, intestazione persona fisica, provenienza successione/donazione, ristrutturazione €300k senza bonus fiscali).
+**Scopo**: simulatore HTML statico affitto-vs-vendita per l'immobile di via Solferino 4, Novara (2 unità ristrutturate 80+110 m² + posto auto, intestazione persona fisica, provenienza: successione — quindi plusvalenza esente, ristrutturazione €300k senza bonus fiscali).
+
+🔒 Repo **pubblica**: non inserire nomi di persone o dati personali nei file.
 
 - **Repo**: `CryptoPannoz/simulatore-solferino` (pubblica)
 - **Deploy**: GitHub Pages da `main` → https://cryptopannoz.github.io/simulatore-solferino/ (push su main = deploy automatico). Zero dipendenze, un solo file.
