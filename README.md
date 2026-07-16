@@ -4,7 +4,9 @@ Simulatore interattivo (HTML statico, zero dipendenze) per confrontare i due sce
 
 ## Uso
 
-Apri `index.html` nel browser. Tutti i parametri sono modificabili e i risultati si ricalcolano in tempo reale:
+**Online**: https://cryptopannoz.github.io/simulatore-solferino/
+
+Oppure apri `index.html` nel browser. Tutti i parametri sono modificabili e i risultati si ricalcolano in tempo reale:
 
 - **Immobile**: superfici, €/m², valore posto auto
 - **Vendita**: provvigione + IVA, spese fisse, regime plusvalenza (esente / tassata 26% con valore di carico e costi ristrutturazione), rendimento del reinvestimento
