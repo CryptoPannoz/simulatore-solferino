@@ -177,7 +177,10 @@
         <h2>Immobile</h2>
         <div class="field"><label for="supA">Superficie unità A (m²)</label><input type="number" id="supA" value="110" min="10" step="1"></div>
         <div class="field"><label for="supB">Superficie unità B (m²)</label><input type="number" id="supB" value="80" min="10" step="1"></div>
-        <div class="field"><label for="prezzoMq">Prezzo di vendita (€/m²)</label><input type="number" id="prezzoMq" value="2300" min="500" step="50"></div>
+        <div class="field"><label for="prezzoMqMin">Prezzo €/m² — PRUDENTE</label><input type="number" id="prezzoMqMin" value="2100" min="500" step="50"></div>
+        <div class="field"><label for="prezzoMqMed">Prezzo €/m² — CENTRALE</label><input type="number" id="prezzoMqMed" value="2300" min="500" step="50"></div>
+        <div class="field"><label for="prezzoMqMax">Prezzo €/m² — OTTIMISTA</label><input type="number" id="prezzoMqMax" value="2500" min="500" step="50"></div>
+        <p class="hint">Inserisci i tre valori dell'agenzia. Grafico e confronto pluriennale usano il CENTRALE; KPI e resoconto mostrano l'intero range.</p>
         <div class="field"><label for="postoAuto">Valore posto auto (€)</label><input type="number" id="postoAuto" value="12000" min="0" step="500"></div>
         <div class="field"><label for="costoRistr">Investimento ristrutturazione (€)</label><input type="number" id="costoRistr" value="300000" min="0" step="5000"></div>
         <p class="hint">Usato per il calcolo di rientro e, se la plusvalenza è tassata, come costo deducibile.</p>
@@ -323,6 +326,7 @@
         <summary>Come calcola (metodologia e semplificazioni)</summary>
         <ul>
           <li><strong>Netto vendita</strong> = valore − provvigione (+IVA) − spese fisse − eventuale imposta 26% sulla plusvalenza (valore − carico − ristrutturazione).</li>
+          <li><strong>Range di prezzo</strong>: i tre €/m² (prudente/centrale/ottimista, es. le valutazioni dell'agenzia) danno il range di valore e di netto mostrato in KPI e resoconto; grafico, tabella e confronto pluriennale usano solo lo scenario centrale.</li>
           <li><strong>Scenario vendita</strong>: il netto viene reinvestito e capitalizza al rendimento netto indicato.</li>
           <li><strong>Affitto netto annuo</strong> = canoni × (1 − sfitto) − imposta (cedolare sul canone effettivo, o IRPEF sul 95%) − IMU (−25% se concordato) − manutenzione − assicurazione − agenzia. Canoni rivalutati ogni anno; nel concordato il canone parte scontato della % indicata.</li>
           <li><strong>Scenario affitto</strong>: valore immobile che si apprezza + canoni netti accumulati e reinvestiti allo stesso rendimento; a fine periodo, se selezionato, si sottraggono i costi di vendita (stessa % di provvigione; plusvalenza non ricalcolata).</li>
@@ -342,14 +346,16 @@
   const fmtEUR = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
   const fmtPct = v => v.toLocaleString('it-IT', { maximumFractionDigits: 1 }) + '%';
 
-  const inputIds = ['supA','supB','prezzoMq','postoAuto','provv','ivaProvv','speseVendita','regimePlus',
+  const inputIds = ['supA','supB','prezzoMqMin','prezzoMqMed','prezzoMqMax','postoAuto','provv','ivaProvv','speseVendita','regimePlus',
     'valoreCarico','costoRistr','rendAlt','canA','canB','canAuto','regimeAffitto','scontoConc','aliqIrpef',
     'imu','manut','assic','sfitto','agenziaLoc','rivalCanone','anni','apprezz','inflazione','valoriReali','vendiFine'];
 
   function readParams() {
     const n = id => parseFloat($(id).value) || 0;
     return {
-      supA: n('supA'), supB: n('supB'), prezzoMq: n('prezzoMq'), postoAuto: n('postoAuto'),
+      supA: n('supA'), supB: n('supB'),
+      prezzoMq: n('prezzoMqMed'), prezzoMqMin: n('prezzoMqMin'), prezzoMqMax: n('prezzoMqMax'),
+      postoAuto: n('postoAuto'),
       provv: n('provv') / 100, ivaProvv: n('ivaProvv') / 100, speseVendita: n('speseVendita'),
       regimePlus: $('regimePlus').value, valoreCarico: n('valoreCarico'), costoRistr: n('costoRistr'),
       rendAlt: n('rendAlt') / 100,
@@ -440,9 +446,19 @@
     const gest1 = lordo1 * p.manut + p.assic + p.agenziaLoc;
     const provvTot = valore * p.provv * (1 + p.ivaProvv);
 
+    // --- Range di prezzo (prudente / ottimista) dell'agenzia ---
+    const venditaAt = pmq => {
+      const val = (p.supA + p.supB) * pmq + p.postoAuto;
+      let tax = 0;
+      if (p.regimePlus === 'tassata') tax = Math.max(0, val - p.valoreCarico - p.costoRistr) * 0.26;
+      return { val, netto: val - costiVendita(val, p) - tax };
+    };
+    const pmqLo = Math.min(p.prezzoMqMin, p.prezzoMqMax), pmqHi = Math.max(p.prezzoMqMin, p.prezzoMqMax);
+    const range = { lo: venditaAt(pmqLo), hi: venditaAt(pmqHi), pmqLo, pmqHi };
+
     return { valore, plusTax, nettoVendita, netto1: nettoAffittoAnno(1),
              lordo1, serieVendita: dispVendita, serieAffitto: dispAffitto,
-             cumCanoniSimple, payback, paybackNom, paybackReale,
+             cumCanoniSimple, payback, paybackNom, paybackReale, range,
              breakdown: { sfittoLoss1, imposta1, impostaLabel, imu1: imuEff, gest1, provvTot } };
   }
 
@@ -560,11 +576,12 @@
 
     $('chartTitle').textContent = 'Patrimonio nel tempo' + (p.valoriReali ? ' — valori reali' : '');
     $('kValore').textContent = fmtEUR.format(r.valore);
-    $('kValoreSub').textContent = (p.supA + p.supB) + ' m² × ' + fmtEUR.format(p.prezzoMq) + '/m² + posto auto';
+    $('kValoreSub').textContent = 'range ' + fmtEUR.format(r.range.lo.val) + ' – ' + fmtEUR.format(r.range.hi.val) +
+      ' (' + (p.supA + p.supB) + ' m² × ' + r.range.pmqLo + '–' + r.range.pmqHi + ' €/m²)';
     $('kNettoVendita').textContent = fmtEUR.format(r.nettoVendita);
-    $('kNettoVenditaSub').textContent = r.plusTax > 0
-      ? 'di cui imposta plusvalenza ' + fmtEUR.format(r.plusTax)
-      : 'plusvalenza esente';
+    $('kNettoVenditaSub').textContent =
+      'range ' + fmtEUR.format(r.range.lo.netto) + ' – ' + fmtEUR.format(r.range.hi.netto) +
+      (r.plusTax > 0 ? ' · imposta plusvalenza ' + fmtEUR.format(r.plusTax) : ' · plusvalenza esente');
     $('kAffittoNetto').textContent = fmtEUR.format(r.netto1);
     $('kAffittoSub').textContent = 'lordo ' + fmtEUR.format(r.lordo1) + '/anno';
     const yieldNet = r.nettoVendita > 0 ? (r.netto1 / r.nettoVendita) * 100 : 0;
@@ -609,7 +626,8 @@
       const vMarker = surplus > 0 ? '<div class="pb-marker" style="left:' + wCoperto + '%"></div>' : '';
       const vNote = surplus >= 0
         ? 'Il netto di vendita copre <strong>subito</strong> l’investimento e lascia <strong>+' + fmtEUR.format(surplus) +
-          '</strong> oltre i ' + fmtEUR.format(inv) + ' spesi (<strong>' + (roi >= 0 ? '+' : '') + fmtPct(roi) + '</strong> sull’investimento).'
+          '</strong> oltre i ' + fmtEUR.format(inv) + ' spesi (<strong>' + (roi >= 0 ? '+' : '') + fmtPct(roi) + '</strong> sull’investimento; range surplus ' +
+          fmtEUR.format(r.range.lo.netto - inv) + ' → ' + fmtEUR.format(r.range.hi.netto - inv) + ').'
         : 'Il netto di vendita copre solo ' + fmtEUR.format(netto) + ' dei ' + fmtEUR.format(inv) +
           ' spesi: mancano <strong>' + fmtEUR.format(-surplus) + '</strong> (' + fmtPct(roi) + ').';
       $('pbVendita').innerHTML =
@@ -638,13 +656,14 @@
     const rcRows = rows => rows.map(([l, v, cls]) =>
       '<div class="rc-item' + (cls ? ' ' + cls : '') + '"><span>' + l + '</span><span>' + v + '</span></div>').join('');
     const venditaRows = [
-      ['Valore di mercato', fmtEUR.format(r.valore)],
+      ['Valore di mercato (scenario centrale)', fmtEUR.format(r.valore)],
       ['− Provvigione agenzia (' + fmtPct(p.provv * 100) + ' + IVA)', '−' + fmtEUR.format(b.provvTot)],
       ['− Spese fisse (APE, tecnici)', '−' + fmtEUR.format(p.speseVendita)],
       p.regimePlus === 'tassata'
         ? ['− Imposta plusvalenza 26%', '−' + fmtEUR.format(r.plusTax)]
         : ['Plusvalenza', 'esente'],
       ['= Netto in tasca, subito', fmtEUR.format(r.nettoVendita), 'total'],
+      ['Range prudente → ottimista', fmtEUR.format(r.range.lo.netto) + ' → ' + fmtEUR.format(r.range.hi.netto)],
     ];
     const affittoRows = [
       ['Canoni LORDI (12 mesi)', fmtEUR.format(r.lordo1)],
