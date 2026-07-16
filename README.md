@@ -1,6 +1,6 @@
 # Simulatore Affitto vs Vendita — Via Solferino 4, Novara
 
-Simulatore interattivo (HTML statico, zero dipendenze) per confrontare i due scenari sull'immobile di via Solferino 4 a Novara: **2 unità ristrutturate (80 + 110 m²) + posto auto in cortile**.
+Simulatore interattivo (HTML statico, zero dipendenze) per confrontare i due scenari sull'immobile di via Solferino 4 a Novara: **2 unità ristrutturate (135 + 102 m²) + posto auto in cortile**.
 
 ## Uso
 

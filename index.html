@@ -167,7 +167,7 @@
 <div class="wrap">
   <header>
     <h1>Simulatore Affitto vs Vendita</h1>
-    <p>Via Solferino 4, Novara — 2 unità ristrutturate (80 + 110 m²) + posto auto. Modifica i parametri: tutto si ricalcola in tempo reale.</p>
+    <p>Via Solferino 4, Novara — 2 unità ristrutturate (135 + 102 m²) + posto auto. Modifica i parametri: tutto si ricalcola in tempo reale.</p>
   </header>
 
   <div class="layout">
@@ -175,20 +175,20 @@
     <div>
       <div class="card">
         <h2>Immobile</h2>
-        <div class="field"><label for="supA">Superficie unità A (m²)</label><input type="number" id="supA" value="110" min="10" step="1"></div>
-        <div class="field"><label for="supB">Superficie unità B (m²)</label><input type="number" id="supB" value="80" min="10" step="1"></div>
+        <div class="field"><label for="supA">Superficie unità A (m²)</label><input type="number" id="supA" value="135" min="10" step="1"></div>
+        <div class="field"><label for="supB">Superficie unità B (m²)</label><input type="number" id="supB" value="102" min="10" step="1"></div>
         <div class="field"><label for="prezzoMqMin">Prezzo €/m² — PRUDENTE</label><input type="number" id="prezzoMqMin" value="2100" min="500" step="50"></div>
         <div class="field"><label for="prezzoMqMed">Prezzo €/m² — CENTRALE</label><input type="number" id="prezzoMqMed" value="2300" min="500" step="50"></div>
         <div class="field"><label for="prezzoMqMax">Prezzo €/m² — OTTIMISTA</label><input type="number" id="prezzoMqMax" value="2500" min="500" step="50"></div>
         <p class="hint">Inserisci i tre valori dell'agenzia. Grafico e confronto pluriennale usano il CENTRALE; KPI e resoconto mostrano l'intero range.</p>
-        <div class="field"><label for="postoAuto">Valore posto auto (€)</label><input type="number" id="postoAuto" value="12000" min="0" step="500"></div>
+        <div class="field"><label for="postoAuto">Valore posto auto (€)</label><input type="number" id="postoAuto" value="40000" min="0" step="500"></div>
         <div class="field"><label for="costoRistr">Investimento ristrutturazione (€)</label><input type="number" id="costoRistr" value="300000" min="0" step="5000"></div>
         <p class="hint">Usato per il calcolo di rientro e, se la plusvalenza è tassata, come costo deducibile.</p>
       </div>
 
       <div class="card">
         <h2><span class="dot" style="background:var(--series-vendita)"></span>Scenario vendita</h2>
-        <div class="field"><label for="provv">Provvigione agenzia lato venditore (%)</label><input type="number" id="provv" value="4" min="0" max="10" step="0.5"></div>
+        <div class="field"><label for="provv">Provvigione agenzia lato venditore (%)</label><input type="number" id="provv" value="3" min="0" max="10" step="0.5"></div>
         <div class="field"><label for="ivaProvv">IVA su provvigione (%)</label><input type="number" id="ivaProvv" value="22" min="0" max="22" step="1"></div>
         <p class="hint">L'agenzia prende il 4% + IVA anche dal compratore: non esce dal tuo netto, ma alza il costo totale per chi compra e quindi pesa sul prezzo ottenibile.</p>
         <div class="field"><label for="speseVendita">Spese fisse vendita (€)</label><input type="number" id="speseVendita" value="1000" min="0" step="100"></div>
@@ -202,15 +202,15 @@
         <div id="plusFields" style="display:none">
           <div class="field"><label for="valoreCarico">Valore di carico / acquisto (€)</label><input type="number" id="valoreCarico" value="100000" min="0" step="5000"></div>
         </div>
-        <div class="field"><label for="rendAlt">Rendimento netto reinvestimento (%/anno)</label><input type="number" id="rendAlt" value="2.9" min="0" max="15" step="0.1"></div>
+        <div class="field"><label for="rendAlt">Rendimento netto reinvestimento (%/anno)</label><input type="number" id="rendAlt" value="3" min="0" max="15" step="0.1"></div>
         <p class="hint">Es. BTP ~3,3% lordo ≈ 2,9% netto (imposta 12,5%).</p>
       </div>
 
       <div class="card">
         <h2><span class="dot" style="background:var(--series-affitto)"></span>Scenario affitto</h2>
-        <div class="field"><label for="canA">Canone LORDO unità A (€/mese)</label><input type="number" id="canA" value="1050" min="0" step="25"></div>
-        <div class="field"><label for="canB">Canone LORDO unità B (€/mese)</label><input type="number" id="canB" value="800" min="0" step="25"></div>
-        <div class="field"><label for="canAuto">Canone LORDO posto auto (€/mese)</label><input type="number" id="canAuto" value="60" min="0" step="5"></div>
+        <div class="field"><label for="canA">Canone LORDO unità A (€/mese)</label><input type="number" id="canA" value="1300" min="0" step="25"></div>
+        <div class="field"><label for="canB">Canone LORDO unità B (€/mese)</label><input type="number" id="canB" value="1100" min="0" step="25"></div>
+        <div class="field"><label for="canAuto">Canone LORDO posto auto (€/mese)</label><input type="number" id="canAuto" value="100" min="0" step="5"></div>
         <p class="hint">Inserisci i canoni lordi di mercato (quelli dell'annuncio): tasse, sfitto e costi li sottrae il simulatore — il netto è nel resoconto.</p>
         <div class="field wide">
           <label for="regimeAffitto">Regime fiscale</label>
@@ -227,18 +227,19 @@
         <div class="field"><label for="assic">Assicurazione (€/anno)</label><input type="number" id="assic" value="400" min="0" step="50"></div>
         <div class="field"><label for="sfitto">Sfitto / morosità (%)</label><input type="number" id="sfitto" value="4" min="0" max="30" step="0.5"></div>
         <div class="field"><label for="agenziaLoc">Agenzia locazione (€/anno, ammort.)</label><input type="number" id="agenziaLoc" value="500" min="0" step="50"></div>
-        <div class="field"><label for="rivalCanone">Rivalutazione canone (%/anno)</label><input type="number" id="rivalCanone" value="1.5" min="0" max="8" step="0.1"></div>
+        <div class="field"><label for="rivalCanone">Rivalutazione canone (%/anno)</label><input type="number" id="rivalCanone" value="0" min="0" max="8" step="0.1"></div>
+        <p class="hint">Con la cedolare secca si rinuncia agli adeguamenti ISTAT: 0 è il valore corretto (alzalo solo tra un contratto e l'altro).</p>
       </div>
 
       <div class="card">
         <h2>Confronto pluriennale</h2>
         <div class="field"><label for="anni">Orizzonte (anni)</label><input type="number" id="anni" value="10" min="1" max="30" step="1"></div>
-        <div class="field"><label for="apprezz">Apprezzamento immobile (%/anno)</label><input type="number" id="apprezz" value="1" min="-5" max="8" step="0.1"></div>
-        <div class="field"><label for="inflazione">Inflazione (%/anno)</label><input type="number" id="inflazione" value="2" min="0" max="10" step="0.1"></div>
+        <div class="field"><label for="apprezz">Apprezzamento immobile (%/anno)</label><input type="number" id="apprezz" value="0" min="-5" max="8" step="0.1"></div>
+        <div class="field"><label for="inflazione">Inflazione (%/anno)</label><input type="number" id="inflazione" value="3" min="0" max="10" step="0.1"></div>
         <p class="hint">L'inflazione fa crescere IMU e costi fissi; con "valori reali" deflaziona grafico, tabella e rientro.</p>
         <div class="field wide">
           <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
-            <input type="checkbox" id="valoriReali">
+            <input type="checkbox" id="valoriReali" checked>
             Mostra valori reali (al netto dell'inflazione)
           </label>
         </div>
@@ -248,6 +249,7 @@
             Nello scenario affitto, vendi a fine periodo (applica costi di vendita)
           </label>
         </div>
+        <p class="hint">Lasciala attiva per un confronto alla pari: se la togli, lo scenario affitto conta l'immobile a valore pieno senza mai pagare provvigione e spese, e parte avvantaggiato esattamente di quei costi.</p>
       </div>
     </div>
 
@@ -698,6 +700,13 @@
       msg += ' Con l’affitto, i canoni netti ripagano i ' + fmtEUR.format(p.costoRistr) + ' di ristrutturazione in ' +
              (r.payback === null ? 'oltre 100 anni' : '≈ <strong>' + r.payback + ' anni</strong>' +
                (r.payback > p.anni ? ' (oltre l’orizzonte impostato)' : '')) + '.';
+    }
+    if (!p.vendiFine) {
+      const valFin = r.valore * Math.pow(1 + p.apprezz, p.anni);
+      let costiFin = valFin * p.provv * (1 + p.ivaProvv) + p.speseVendita;
+      if (p.valoriReali) costiFin /= Math.pow(1 + p.inflazione, p.anni);
+      msg += ' ⚠️ <strong>Confronto non alla pari</strong>: lo scenario affitto conta l’immobile a valore pieno senza costi di vendita — circa ' +
+             fmtEUR.format(costiFin) + ' del suo vantaggio è solo questo. Riattiva la spunta "vendi a fine periodo" per il confronto omogeneo.';
     }
     $('verdict').innerHTML = msg;
 
